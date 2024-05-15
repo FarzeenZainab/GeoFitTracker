@@ -5,7 +5,7 @@ planning process before jumping ahead start coding. There are different
 ways of planning a project, below are the process that will work for
 small and medium size projects
 
-![project planning](image.png)
+![project planning](public/image.png)
 
 ## Step 1: Create User Stories
 
@@ -68,6 +68,18 @@ Based on the user stories here are some examples of the features:
 ## Step 3: Flowchart
 
 Based on the decided features, we will create flowcharts that clearly outlines the data flow, conditions and more
+
+Example of creating a flow chart:
+
+The easiest way to get started by a designing a flow chart is to start with the events that will trigger
+
+1. Page load
+2. Button Click
+3. Image load
+
+![Flow chart example](public/image-1.png)
+
+![Flow chart example](public/image-2.png)
 
 ## Step 4: Finalizing Architecture
 
