@@ -10,7 +10,7 @@ const inputDuration = document.querySelector('.form__input--duration');
 const inputCadence = document.querySelector('.form__input--cadence');
 const inputElevation = document.querySelector('.form__input--elevation');
 
-const workouts = [];
+const workouts = JSON.parse(localStorage.getItem('workouts')) || [];
 const containerWorkouts = document.querySelector('.workouts');
 
 let map, coords;
@@ -46,68 +46,44 @@ navigator?.geolocation?.getCurrentPosition(
   }
 );
 
-form.addEventListener('submit', e => {
-  e.preventDefault();
-
-  // today's date
-  const today = new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-  });
-
-  // get all form values
-  const formData = new FormData(form);
-  const formValues = {
-    type: formData.get('type'),
-    distance: formData.get('distance'),
-    duration: formData.get('duration'),
-  };
-
-  if (formValues.type === 'running') {
-    formValues.cadence = formData.get('cadence');
-
-    containerWorkouts.insertAdjacentHTML(
-      'beforeend',
-      `  <li class="workout workout--running"">
+// render workouts
+const renderWorkout = (containerEle, workout) => {
+  return containerEle.insertAdjacentHTML(
+    'beforeend',
+    `  <li class="workout ${
+      workout.type === 'running' ? 'workout--running' : 'workout--cycling'
+    } "">
           <h2 class="workout__title">Running on April 14</h2>
           <div class="workout__details">
             <span class="workout__icon">🏃‍♂️</span>
-            <span class="workout__value">${formValues.distance}</span>
+            <span class="workout__value">${workout.distance}</span>
             <span class="workout__unit">km</span>
           </div>
           <div class="workout__details">
             <span class="workout__icon">⏱</span>
-            <span class="workout__value">${formValues.duration}</span>
+            <span class="workout__value">${workout.duration}</span>
             <span class="workout__unit">min</span>
           </div>
           <div class="workout__details">
             <span class="workout__icon">⚡️</span>
             <span class="workout__value">${Math.ceil(
-              formValues.cadence / formValues.duration
+              workout.cadence / workout.duration
             )}</span>
             <span class="workout__unit">min/km</span>
           </div>
           <div class="workout__details">
             <span class="workout__icon">🦶🏼</span>
-            <span class="workout__value">${formValues.cadence}</span>
+            <span class="workout__value">${workout.cadence}</span>
             <span class="workout__unit">spm</span>
           </div>
         </li>
 `
-    );
-  }
+  );
+};
 
-  if (formValues.type === 'cycling') {
-    formValues.elevation = formData.get('elevation');
-  }
-
-  workouts.push({
-    formValues,
-  });
-
-  // display the marker
-  const coordinates = [coords.lat, coords.lng];
-  L.marker(coordinates)
+// show location pin on the map
+const showLocationPin = ({ latitude, longitude, type, date }) => {
+  L.marker([latitude, longitude])
     .addTo(map)
     .bindPopup(
       L.popup({
@@ -119,23 +95,73 @@ form.addEventListener('submit', e => {
       })
     )
     .setPopupContent(
-      `<span style="text-transform: capitalize;">${formValues.type}</span> on ${today}`
+      `<span style="text-transform: capitalize;">${type}</span> on ${date}`
     )
     .openPopup();
+};
 
-  // clear the input values
-  inputCadence.value =
-    inputDistance.value =
-    inputDuration.value =
-    inputElevation.value =
-      '';
+// page load
+window.addEventListener('load', () => {
+  const savedWorkout = JSON.parse(localStorage.getItem('workouts')) || [];
 
-  // hide form
-  form.classList.add('hidden');
+  savedWorkout.forEach(workout => {
+    // render list of saved workouts
+    renderWorkout(containerWorkouts, workout);
+
+    // render location pin on map
+    showLocationPin(workout);
+  });
 });
 
 // on type change
 inputType.addEventListener('change', e => {
   inputCadence.closest('.form__row').classList.toggle('form__row--hidden');
   inputElevation.closest('.form__row').classList.toggle('form__row--hidden');
+});
+
+// on form submit
+form.addEventListener('submit', e => {
+  e.preventDefault();
+
+  // today's date
+  const today = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+  });
+
+  // get all form values
+  const formData = new FormData(form);
+  const workoutData = {
+    type: formData.get('type'),
+    distance: formData.get('distance'),
+    duration: formData.get('duration'),
+    latitude: coords.lat,
+    longitude: coords.lng,
+    date: today,
+  };
+
+  if (workoutData.type === 'running') {
+    workoutData.cadence = formData.get('cadence');
+  }
+
+  if (workoutData.type === 'cycling') {
+    workoutData.elevation = formData.get('elevation');
+  }
+
+  workouts.push(workoutData);
+
+  // store items in local storage
+  localStorage.setItem('workouts', JSON.stringify(workouts));
+
+  renderWorkout(containerWorkouts, workoutData);
+
+  showLocationPin(workoutData);
+
+  inputCadence.value =
+    inputDistance.value =
+    inputDuration.value =
+    inputElevation.value =
+      '';
+
+  form.classList.add('hidden');
 });
