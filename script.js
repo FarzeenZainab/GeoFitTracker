@@ -15,6 +15,8 @@ const containerWorkouts = document.querySelector('.workouts');
 
 let map, coords;
 
+let counter = parseInt(localStorage.getItem('counter')) || 1;
+
 //  get current position takes in two callbacks, one is called when the location
 // is successfully retrieved and the second one when there is an error or the user denies to
 // provide the location
@@ -48,14 +50,17 @@ navigator?.geolocation?.getCurrentPosition(
 
 // render workouts
 const renderWorkout = (containerEle, workout) => {
-  return containerEle.insertAdjacentHTML(
-    'beforeend',
-    `  <li class="workout ${
-      workout.type === 'running' ? 'workout--running' : 'workout--cycling'
-    } "">
-          <h2 class="workout__title">Running on April 14</h2>
+  const isRunningWorkout = workout.type === 'running';
+
+  let html = `
+      <li class="workout ${
+        isRunningWorkout ? 'workout--running' : 'workout--cycling'
+      }" data-id="${workout.id}">
+          <h2 class="workout__title">${
+            isRunningWorkout ? 'Running' : 'Cycling'
+          } on April 14</h2>
           <div class="workout__details">
-            <span class="workout__icon">🏃‍♂️</span>
+            <span class="workout__icon">${isRunningWorkout ? '🏃‍♂️' : '🚴‍♀️'}</span>
             <span class="workout__value">${workout.distance}</span>
             <span class="workout__unit">km</span>
           </div>
@@ -64,21 +69,46 @@ const renderWorkout = (containerEle, workout) => {
             <span class="workout__value">${workout.duration}</span>
             <span class="workout__unit">min</span>
           </div>
-          <div class="workout__details">
-            <span class="workout__icon">⚡️</span>
-            <span class="workout__value">${Math.ceil(
-              workout.cadence / workout.duration
-            )}</span>
-            <span class="workout__unit">min/km</span>
-          </div>
-          <div class="workout__details">
-            <span class="workout__icon">🦶🏼</span>
-            <span class="workout__value">${workout.cadence}</span>
-            <span class="workout__unit">spm</span>
-          </div>
-        </li>
-`
-  );
+        `;
+
+  if (isRunningWorkout) {
+    html += `
+      <div class="workout__details">
+        <span class="workout__icon">⚡️</span>
+        <span class="workout__value">${
+          workout.duration / workout.distance
+        }</span>
+        <span class="workout__unit">min/km</span>
+      </div>
+      <div class="workout__details">
+        <span class="workout__icon">🦶🏼</span>
+        <span class="workout__value">${workout.cadence}</span>
+        <span class="workout__unit">spm</span>
+      </div>
+    </li>
+  `;
+  }
+
+  if (!isRunningWorkout) {
+    html += `
+      <div class="workout__details">
+          <span class="workout__icon">⚡️</span>
+          <span class="workout__value">${(
+            workout.distance /
+            (workout.duration / 60)
+          ).toFixed(1)}</span>
+          <span class="workout__unit">km/h</span>
+        </div>
+        <div class="workout__details">
+          <span class="workout__icon">⛰</span>
+          <span class="workout__value">${workout.elevation}</span>
+          <span class="workout__unit">m</span>
+        </div>
+    </li>
+  `;
+  }
+
+  return containerEle.insertAdjacentHTML('beforeend', html);
 };
 
 // show location pin on the map
@@ -100,7 +130,7 @@ const showLocationPin = ({ latitude, longitude, type, date }) => {
     .openPopup();
 };
 
-// page load
+// render saved workouts on page load
 window.addEventListener('load', () => {
   const savedWorkout = JSON.parse(localStorage.getItem('workouts')) || [];
 
@@ -119,6 +149,18 @@ inputType.addEventListener('change', e => {
   inputElevation.closest('.form__row').classList.toggle('form__row--hidden');
 });
 
+// update counter which is used to generate workout id
+const updateCounter = () => {
+  counter++;
+  localStorage.setItem('counter', counter);
+};
+
+// add new workout in the array and in the local storage
+const addWorkout = workout => {
+  workouts.push(workout);
+  localStorage.setItem('workouts', JSON.stringify(workouts));
+};
+
 // on form submit
 form.addEventListener('submit', e => {
   e.preventDefault();
@@ -132,6 +174,7 @@ form.addEventListener('submit', e => {
   // get all form values
   const formData = new FormData(form);
   const workoutData = {
+    id: counter,
     type: formData.get('type'),
     distance: formData.get('distance'),
     duration: formData.get('duration'),
@@ -148,13 +191,9 @@ form.addEventListener('submit', e => {
     workoutData.elevation = formData.get('elevation');
   }
 
-  workouts.push(workoutData);
-
-  // store items in local storage
-  localStorage.setItem('workouts', JSON.stringify(workouts));
-
+  updateCounter();
+  addWorkout(workoutData);
   renderWorkout(containerWorkouts, workoutData);
-
   showLocationPin(workoutData);
 
   inputCadence.value =
@@ -164,4 +203,18 @@ form.addEventListener('submit', e => {
       '';
 
   form.classList.add('hidden');
+});
+
+// pan to marker when clicked on a workout
+containerWorkouts.addEventListener('click', e => {
+  const workoutEle = e.target.closest('.workout');
+
+  if (!workoutEle) return;
+
+  const id = workoutEle.dataset.id;
+  const selectedWorkout = workouts.find(
+    workout => parseInt(workout.id) === parseInt(id)
+  );
+
+  map.setView([selectedWorkout.latitude, selectedWorkout.longitude], 17.5);
 });
