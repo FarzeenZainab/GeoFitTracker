@@ -48,6 +48,36 @@ navigator?.geolocation?.getCurrentPosition(
   }
 );
 
+/**
+ * =============
+ *  FUNCTIONS
+ * =============
+ */
+
+// show toast on error, success and warning
+const showToast = (status, message) => {
+  const getVariant = () => {
+    const variant = {
+      success: '#00c46a',
+      error: '#ffb545',
+      warning: '#aaaaaa',
+    };
+    return variant[status];
+  };
+  Toastify({
+    text: message,
+    offset: {
+      x: 50,
+      y: 10,
+    },
+    style: {
+      background: getVariant(status),
+      fontSize: '14px',
+    },
+    stopOnFocus: true,
+  }).showToast();
+};
+
 // render workouts
 const renderWorkout = (containerEle, workout) => {
   const isRunningWorkout = workout.type === 'running';
@@ -55,18 +85,18 @@ const renderWorkout = (containerEle, workout) => {
   let html = `
       <li class="workout ${
         isRunningWorkout ? 'workout--running' : 'workout--cycling'
-      }" data-id="${workout.id}">
+      }" data-id="${workout?.id}">
           <h2 class="workout__title">${
             isRunningWorkout ? 'Running' : 'Cycling'
-          } on April 14</h2>
+          } on ${workout?.date}</h2>
           <div class="workout__details">
             <span class="workout__icon">${isRunningWorkout ? '🏃‍♂️' : '🚴‍♀️'}</span>
-            <span class="workout__value">${workout.distance}</span>
+            <span class="workout__value">${workout?.distance}</span>
             <span class="workout__unit">km</span>
           </div>
           <div class="workout__details">
             <span class="workout__icon">⏱</span>
-            <span class="workout__value">${workout.duration}</span>
+            <span class="workout__value">${workout?.duration}</span>
             <span class="workout__unit">min</span>
           </div>
         `;
@@ -130,25 +160,6 @@ const showLocationPin = ({ latitude, longitude, type, date }) => {
     .openPopup();
 };
 
-// render saved workouts on page load
-window.addEventListener('load', () => {
-  const savedWorkout = JSON.parse(localStorage.getItem('workouts')) || [];
-
-  savedWorkout.forEach(workout => {
-    // render list of saved workouts
-    renderWorkout(containerWorkouts, workout);
-
-    // render location pin on map
-    showLocationPin(workout);
-  });
-});
-
-// on type change
-inputType.addEventListener('change', e => {
-  inputCadence.closest('.form__row').classList.toggle('form__row--hidden');
-  inputElevation.closest('.form__row').classList.toggle('form__row--hidden');
-});
-
 // update counter which is used to generate workout id
 const updateCounter = () => {
   counter++;
@@ -161,7 +172,30 @@ const addWorkout = workout => {
   localStorage.setItem('workouts', JSON.stringify(workouts));
 };
 
-// on form submit
+// validate fields
+const fieldsAreValid = workoutData => {
+  if (
+    !workoutData.distance ||
+    !workoutData.duration ||
+    (workoutData.type === 'running' && !workoutData.cadence) ||
+    (workoutData.type === 'cycling' && !workoutData.elevation)
+  ) {
+    showToast('error', 'Please provide values in all fields');
+    return false;
+  }
+
+  return true;
+};
+
+/*------ end of FUNCTIONS --------*/
+
+/**
+ * ===========
+ *    EVENTS
+ * ===========
+ */
+
+// add new workout
 form.addEventListener('submit', e => {
   e.preventDefault();
 
@@ -175,34 +209,54 @@ form.addEventListener('submit', e => {
   const formData = new FormData(form);
   const workoutData = {
     id: counter,
-    type: formData.get('type'),
-    distance: formData.get('distance'),
-    duration: formData.get('duration'),
+    type: formData.get('type').trim(),
+    distance: formData.get('distance').trim(),
+    duration: formData.get('duration').trim(),
     latitude: coords.lat,
     longitude: coords.lng,
     date: today,
   };
 
   if (workoutData.type === 'running') {
-    workoutData.cadence = formData.get('cadence');
+    workoutData.cadence = formData.get('cadence').trim();
   }
 
   if (workoutData.type === 'cycling') {
-    workoutData.elevation = formData.get('elevation');
+    workoutData.elevation = formData.get('elevation').trim();
   }
 
-  updateCounter();
-  addWorkout(workoutData);
-  renderWorkout(containerWorkouts, workoutData);
-  showLocationPin(workoutData);
+  if (fieldsAreValid(workoutData)) {
+    updateCounter();
+    addWorkout(workoutData);
+    renderWorkout(containerWorkouts, workoutData);
+    showLocationPin(workoutData);
+    inputCadence.value =
+      inputDistance.value =
+      inputDuration.value =
+      inputElevation.value =
+        '';
+    form.classList.add('hidden');
+    showToast('success', 'New workout has been added successfully');
+  }
+});
 
-  inputCadence.value =
-    inputDistance.value =
-    inputDuration.value =
-    inputElevation.value =
-      '';
+// render saved workouts on page load
+window.addEventListener('load', () => {
+  const savedWorkout = JSON.parse(localStorage.getItem('workouts')) || [];
 
-  form.classList.add('hidden');
+  savedWorkout.forEach(workout => {
+    // render list of saved workouts
+    renderWorkout(containerWorkouts, workout);
+
+    // render location pin on map
+    showLocationPin(workout);
+  });
+});
+
+// toggle elevation and cadence field on workout type change
+inputType.addEventListener('change', e => {
+  inputCadence.closest('.form__row').classList.toggle('form__row--hidden');
+  inputElevation.closest('.form__row').classList.toggle('form__row--hidden');
 });
 
 // pan to marker when clicked on a workout
@@ -218,3 +272,5 @@ containerWorkouts.addEventListener('click', e => {
 
   map.setView([selectedWorkout.latitude, selectedWorkout.longitude], 17.5);
 });
+
+/*------ end of EVENTS --------*/
