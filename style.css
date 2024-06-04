@@ -76,6 +76,15 @@ a:visited {
   grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 0.75rem 1.5rem;
 }
+.workout .title-container {
+  grid-column: span 4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.workout .remove--workout:hover {
+  text-decoration: underline;
+}
 .workout--running {
   border-left: 5px solid var(--color-brand--2);
 }

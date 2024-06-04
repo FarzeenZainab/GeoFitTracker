@@ -10,7 +10,7 @@ const inputDuration = document.querySelector('.form__input--duration');
 const inputCadence = document.querySelector('.form__input--cadence');
 const inputElevation = document.querySelector('.form__input--elevation');
 
-const workouts = JSON.parse(localStorage.getItem('workouts')) || [];
+let workouts = JSON.parse(localStorage.getItem('workouts')) || [];
 const containerWorkouts = document.querySelector('.workouts');
 
 let map, coords;
@@ -86,9 +86,15 @@ const renderWorkout = (containerEle, workout) => {
       <li class="workout ${
         isRunningWorkout ? 'workout--running' : 'workout--cycling'
       }" data-id="${workout?.id}">
+        
+        <div class="title-container">
           <h2 class="workout__title">${
             isRunningWorkout ? 'Running' : 'Cycling'
           } on ${workout?.date}</h2>
+
+          <div class="remove--workout" data-id="${workout?.id}">Remove</div>
+        </div>
+
           <div class="workout__details">
             <span class="workout__icon">${isRunningWorkout ? '🏃‍♂️' : '🚴‍♀️'}</span>
             <span class="workout__value">${workout?.distance}</span>
@@ -105,9 +111,9 @@ const renderWorkout = (containerEle, workout) => {
     html += `
       <div class="workout__details">
         <span class="workout__icon">⚡️</span>
-        <span class="workout__value">${
+        <span class="workout__value">${(
           workout.duration / workout.distance
-        }</span>
+        ).toFixed(1)}</span>
         <span class="workout__unit">min/km</span>
       </div>
       <div class="workout__details">
@@ -185,6 +191,19 @@ const fieldsAreValid = workoutData => {
   }
 
   return true;
+};
+
+// delete workouts
+const deleteWorkout = workoutData => {
+  const newWorkouts = workouts.filter(workout => workoutData.id !== workout.id);
+
+  workouts = newWorkouts;
+  localStorage.setItem('workouts', JSON.stringify(workouts));
+
+  containerWorkouts.innerHTML = '';
+  workouts.forEach(workout => {
+    renderWorkout(containerWorkouts, workout);
+  });
 };
 
 /*------ end of FUNCTIONS --------*/
@@ -273,4 +292,22 @@ containerWorkouts.addEventListener('click', e => {
   map.setView([selectedWorkout.latitude, selectedWorkout.longitude], 17.5);
 });
 
+// delete workout
+containerWorkouts.addEventListener('click', e => {
+  if (e.target.classList.contains('remove--workout')) {
+    const workoutEle = e.target.closest('.workout');
+
+    if (!workoutEle) return;
+
+    const id = workoutEle.dataset.id;
+    const selectedWorkout = workouts.find(
+      workout => parseInt(workout.id) === parseInt(id)
+    );
+
+    deleteWorkout(selectedWorkout);
+  }
+});
+
 /*------ end of EVENTS --------*/
+
+// ! add functionality to delete workout
