@@ -11,35 +11,29 @@ const inputCadence = document.querySelector('.form__input--cadence');
 const inputElevation = document.querySelector('.form__input--elevation');
 
 let workouts = JSON.parse(localStorage.getItem('workouts')) || [];
+let markers = {}; // Store markers in an object with workout IDs as keys
 const containerWorkouts = document.querySelector('.workouts');
 
 let map, coords;
 
 let counter = parseInt(localStorage.getItem('counter')) || 1;
 
-//  get current position takes in two callbacks, one is called when the location
-// is successfully retrieved and the second one when there is an error or the user denies to
-// provide the location
+// Get current position
 navigator?.geolocation?.getCurrentPosition(
   position => {
-    // get user's position
     const { latitude, longitude } = position.coords;
     const currentLocation = [latitude, longitude];
 
-    // create map
     const key = 'FakHOIPI0AUyYkhvQldq';
     map = L.map('map').setView(currentLocation, 16);
 
     L.maptilerLayer({
       apiKey: key,
-      // style: 'dataviz', //optional
     }).addTo(map);
 
-    // handling click on map
     map.addEventListener('click', mapEvent => {
       form.classList.remove('hidden');
       inputDistance.focus();
-
       coords = mapEvent.latlng;
     });
   },
@@ -54,7 +48,7 @@ navigator?.geolocation?.getCurrentPosition(
  * =============
  */
 
-// show toast on error, success and warning
+// Show toast on error, success and warning
 const showToast = (status, message) => {
   const getVariant = () => {
     const variant = {
@@ -78,7 +72,7 @@ const showToast = (status, message) => {
   }).showToast();
 };
 
-// render workouts
+// Render workouts
 const renderWorkout = (containerEle, workout) => {
   const isRunningWorkout = workout.type === 'running';
 
@@ -147,9 +141,9 @@ const renderWorkout = (containerEle, workout) => {
   return containerEle.insertAdjacentHTML('beforeend', html);
 };
 
-// show location pin on the map
+// Show location pin on the map
 const showLocationPin = ({ latitude, longitude, type, date }) => {
-  L.marker([latitude, longitude])
+  const marker = L.marker([latitude, longitude])
     .addTo(map)
     .bindPopup(
       L.popup({
@@ -164,21 +158,23 @@ const showLocationPin = ({ latitude, longitude, type, date }) => {
       `<span style="text-transform: capitalize;">${type}</span> on ${date}`
     )
     .openPopup();
+
+  return marker;
 };
 
-// update counter which is used to generate workout id
+// Update counter which is used to generate workout ID
 const updateCounter = () => {
   counter++;
   localStorage.setItem('counter', counter);
 };
 
-// add new workout in the array and in the local storage
+// Add new workout in the array and in the local storage
 const addWorkout = workout => {
   workouts.push(workout);
   localStorage.setItem('workouts', JSON.stringify(workouts));
 };
 
-// validate fields
+// Validate fields
 const fieldsAreValid = workoutData => {
   if (
     !workoutData.distance ||
@@ -193,20 +189,27 @@ const fieldsAreValid = workoutData => {
   return true;
 };
 
-// delete workouts
+// Delete workouts
 const deleteWorkout = workoutData => {
-  const newWorkouts = workouts.filter(workout => workoutData.id !== workout.id);
-
+  // Update the data in local storage
+  const newWorkouts = workouts.filter(
+    workout => workout?.id !== workoutData?.id
+  );
   workouts = newWorkouts;
   localStorage.setItem('workouts', JSON.stringify(workouts));
 
-  containerWorkouts.innerHTML = '';
-  workouts.forEach(workout => {
-    renderWorkout(containerWorkouts, workout);
-  });
-};
+  // Remove the workout element from the DOM
+  const workoutEle = containerWorkouts.querySelector(
+    `[data-id="${workoutData.id}"]`
+  );
+  if (workoutEle) workoutEle.remove();
 
-/*------ end of FUNCTIONS --------*/
+  // Remove the marker from the map
+  if (markers[workoutData.id]) {
+    map.removeLayer(markers[workoutData.id]);
+    delete markers[workoutData.id];
+  }
+};
 
 /**
  * ===========
@@ -214,17 +217,17 @@ const deleteWorkout = workoutData => {
  * ===========
  */
 
-// add new workout
+// Add new workout
 form.addEventListener('submit', e => {
   e.preventDefault();
 
-  // today's date
+  // Today's date
   const today = new Date().toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
   });
 
-  // get all form values
+  // Get all form values
   const formData = new FormData(form);
   const workoutData = {
     id: counter,
@@ -246,9 +249,11 @@ form.addEventListener('submit', e => {
 
   if (fieldsAreValid(workoutData)) {
     updateCounter();
+    const marker = showLocationPin(workoutData);
+    markers[workoutData.id] = marker;
     addWorkout(workoutData);
     renderWorkout(containerWorkouts, workoutData);
-    showLocationPin(workoutData);
+
     inputCadence.value =
       inputDistance.value =
       inputDuration.value =
@@ -259,26 +264,24 @@ form.addEventListener('submit', e => {
   }
 });
 
-// render saved workouts on page load
+// Render saved workouts on page load
 window.addEventListener('load', () => {
-  const savedWorkout = JSON.parse(localStorage.getItem('workouts')) || [];
+  const savedWorkouts = JSON.parse(localStorage.getItem('workouts')) || [];
 
-  savedWorkout.forEach(workout => {
-    // render list of saved workouts
+  savedWorkouts.forEach(workout => {
     renderWorkout(containerWorkouts, workout);
-
-    // render location pin on map
-    showLocationPin(workout);
+    const marker = showLocationPin(workout);
+    markers[workout.id] = marker;
   });
 });
 
-// toggle elevation and cadence field on workout type change
+// Toggle elevation and cadence field on workout type change
 inputType.addEventListener('change', e => {
   inputCadence.closest('.form__row').classList.toggle('form__row--hidden');
   inputElevation.closest('.form__row').classList.toggle('form__row--hidden');
 });
 
-// pan to marker when clicked on a workout
+// Pan to marker when clicked on a workout
 containerWorkouts.addEventListener('click', e => {
   const workoutEle = e.target.closest('.workout');
 
@@ -289,10 +292,12 @@ containerWorkouts.addEventListener('click', e => {
     workout => parseInt(workout.id) === parseInt(id)
   );
 
-  map.setView([selectedWorkout.latitude, selectedWorkout.longitude], 17.5);
+  if (selectedWorkout) {
+    map.setView([selectedWorkout.latitude, selectedWorkout.longitude], 17.5);
+  }
 });
 
-// delete workout
+// Delete workout
 containerWorkouts.addEventListener('click', e => {
   if (e.target.classList.contains('remove--workout')) {
     const workoutEle = e.target.closest('.workout');
@@ -304,10 +309,9 @@ containerWorkouts.addEventListener('click', e => {
       workout => parseInt(workout.id) === parseInt(id)
     );
 
-    deleteWorkout(selectedWorkout);
+    if (selectedWorkout) {
+      deleteWorkout(selectedWorkout);
+      showToast('success', 'Workout has been removed successfully');
+    }
   }
 });
-
-/*------ end of EVENTS --------*/
-
-// ! add functionality to delete workout
