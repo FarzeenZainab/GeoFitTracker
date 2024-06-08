@@ -23,7 +23,7 @@ A simple web application to track your workouts using Leaflet.js for map integra
    
    ```
 
-   cd GeofFitTracker
+   cd GeoFitTracker
 
    ```
 3. Open the **index.html** file in your browser to run the application.
