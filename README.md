@@ -2,6 +2,8 @@
 
 A simple web application to track your workouts using Leaflet.js for map integration. This application allows users to log running and cycling workouts by placing markers on a map and storing the workout data in local storage.
 
+([geo-fit-tracker.netlify.app/](https://geo-fit-tracker.netlify.app/))
+
 ## Features
 
 - Geolocation to detect the user's current position.
